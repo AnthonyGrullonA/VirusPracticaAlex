@@ -1,13 +1,8 @@
-cat > docker-compose.yml << 'EOF'
-version: '3.8'
 services:
   api:
     build: .
-    restart: always
     ports:
-      - "8080:5000"  # IP_VPS:8080 → Container:5000
+      - "8080:5000"
     volumes:
-      - ciberdata:/data
-volumes:
-  ciberdata:
-EOF
+      - ./data:/data
+    restart: always
