@@ -9,32 +9,27 @@ HEALTH=$(curl -s "$BASE/health")
 echo "-> $HEALTH"
 
 echo
-echo "[2] Generando timestamp..."
-TS=$(date +%s)
-echo "-> TS=$TS"
+echo "[2] Obteniendo nonce + token..."
+AUTH=$(curl -s "$BASE/auth/key")
 
-echo
-echo "[3] Obteniendo KEY..."
-KEY=$(curl -s "$BASE/auth/key?ts=$TS")
+NONCE=$(echo "$AUTH" | grep -oP '"nonce"\s*:\s*"\K[^"]+')
+TOKEN=$(echo "$AUTH" | grep -oP '"token"\s*:\s*"\K[^"]+')
 
-if [ -z "$KEY" ]; then
-  echo "[ERROR] No se obtuvo key"
+if [ -z "$NONCE" ] || [ -z "$TOKEN" ]; then
+  echo "[ERROR] No se pudo obtener nonce/token"
+  echo "$AUTH"
   exit 1
 fi
 
-LEN=${#KEY}
-echo "-> KEY=$KEY"
-echo "-> LENGTH=$LEN"
-
-if [ "$LEN" -ne 44 ]; then
-  echo "[ERROR] Key inválida (esperado 44 chars)"
-  exit 1
-fi
+echo "-> NONCE=$NONCE"
+echo "-> TOKEN=$TOKEN"
 
 echo
-echo "[4] Solicitando payload..."
+echo "[3] Solicitando payload..."
+
 RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
-  -H "X-Decrypt-Key: $KEY" \
+  -H "X-Nonce: $NONCE" \
+  -H "X-Token: $TOKEN" \
   "$BASE/payload/encrypted")
 
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -49,9 +44,10 @@ if [ "$STATUS" != "200" ]; then
 fi
 
 echo
-echo "[5] Validando contenido..."
+echo "[4] Validando contenido..."
+
 if [[ "$BODY" == *"not found"* ]]; then
-  echo "[ERROR] artefacto.ps1 no encontrado en contenedor"
+  echo "[ERROR] artefacto.ps1 no encontrado"
   exit 1
 fi
 

